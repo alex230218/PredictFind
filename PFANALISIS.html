@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PredictFind - Herramienta de Predicción de Desaparecidos</title>
+    <!-- Carga Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración de la fuente Inter -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f8fc;
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s infinite;
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor Principal de la Aplicación -->
+    <div id="app" class="min-h-screen bg-gray-100 p-4 sm:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-indigo-700">
+                Predict<span class="text-green-500">Find</span>
+            </h1>
+            <p class="text-lg text-gray-500">Sistema de Predicción de Ubicación Táctica (SAR)</p>
+            <div id="user-info" class="mt-2 text-xs text-gray-400"></div>
+        </header>
+
+        <!-- Mensajes y Alertas -->
+        <div id="messages-container" class="mb-4"></div>
+
+        <!-- Dashboard Principal (Contenido Dinámico) -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Predicción Clave -->
+                <div id="prediction-display" class="bg-white shadow-xl rounded-2xl p-6 border-t-4 border-indigo-500 transition duration-300 hover:shadow-2xl">
+                    <p class="text-gray-500">Cargando datos de predicción...</p>
+                </div>
+
+                <!-- Mapa de Calor Operacional -->
+                <div id="heatmap-container" class="bg-white shadow-xl rounded-2xl p-6 border-t-4 border-indigo-500">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Mapa de Cuadrícula Operacional (Probabilidad SAR)
+                    </h3>
+                    <div id="heatmap-visualization">
+                        <p class="text-gray-500 text-center py-8">Esperando datos para generar el Mapa Operacional.</p>
+                    </div>
+                </div>
+
+                <!-- Factores Ambientales -->
+                <div id="environment-display" class="bg-white shadow-xl rounded-2xl p-6 border-t-4 border-green-500 transition duration-300 hover:shadow-2xl">
+                    <p class="text-gray-500">Cargando datos ambientales...</p>
+                </div>
+
+                <!-- Generación de Documentos (IA) -->
+                <div class="bg-white shadow-xl rounded-2xl p-6 border-t-4 border-pink-500">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 2h2m-4-6h4m0-4v8m-12 8h8m-8 0a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Generación de Documentos (IA)
+                    </h3>
+                    <p class="text-gray-600 mb-4">Genera un reporte de situación analítico, listo para compartir con los equipos de búsqueda (SITREP Táctico).</p>
+                    <button
+                        id="generate-report-btn"
+                        class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 shadow-lg hover:shadow-xl"
+                        disabled
+                    >
+                        Generar Reporte de Situación (SITREP)
+                    </button>
+                </div>
+
+            </div>
+            
+            <!-- Bucle de Retroalimentación y Pistas -->
+            <div id="clues-section" class="lg:col-span-1">
+                <!-- Se llenará dinámicamente -->
+            </div>
+        </main>
+
+        <!-- PANEL DE CONTROL DE DATOS -->
+        <div class="bg-white shadow-2xl rounded-2xl p-6 sm:p-8 mt-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2m-7 7h3m-3 3h3"></path></svg>
+                Análisis de Datos Históricos y Comportamentales
+            </h2>
+
+            <form id="case-details-form" class="space-y-4">
+                <div>
+                    <label for="personName" class="block text-sm font-medium text-gray-700">Nombre de la Persona Desaparecida</label>
+                    <input type="text" id="personName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ej: Laura Pérez" required>
+                </div>
+                <div>
+                    <label for="routine" class="block text-sm font-medium text-gray-700">Rutina Diaria y Comportamiento (Para Análisis de Patrones)</label>
+                    <textarea id="routine" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none" placeholder="Describa horarios, lugares, y frecuencia. Ej: Va al café 'La Esquina' a las 7 AM, siempre camina por el parque a las 5 PM." required></textarea>
+                </div>
+                <div>
+                    <label for="frequentedPlaces" class="block text-sm font-medium text-gray-700">Lugares Frecuentados y Puntos de Interés</label>
+                    <textarea id="frequentedPlaces" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-none" placeholder="Liste direcciones, nombres de lugares visitados y la relación con la zona de búsqueda." required></textarea>
+                </div>
+                <button
+                    type="submit"
+                    id="save-case-btn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 shadow-lg hover:shadow-xl"
+                >
+                    Iniciar Nuevo Caso y Generar Predicción
+                </button>
+            </form>
+        </div>
+
+        <footer class="text-center mt-8 text-sm text-gray-400">
+            PredictFind v1.2. Prototipo desarrollado con HTML, JS y Firebase Firestore.
+        </footer>
+    </div>
+
+    <!-- Modal para el Reporte de Situación -->
+    <div id="report-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center bg-indigo-50 rounded-t-xl">
+                <h2 id="modal-title" class="text-2xl font-bold text-indigo-700">Reporte de Situación (SITREP)</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div id="modal-content" class="p-6 flex-grow overflow-y-auto text-gray-800">
+                <!-- Contenido del reporte generado aquí -->
+            </div>
+
+            <div class="p-4 border-t flex justify-between items-center">
+                <span id="copy-message" class="text-sm text-gray-500 italic"></span>
+                <button
+                    id="copy-report-btn"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 shadow-md"
+                    disabled
+                >
+                    Copiar Reporte
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Carga de Módulos de Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayUnion, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // =========================================================================
+        // === 1. CONFIGURACIÓN E INICIALIZACIÓN DE FIREBASE Y ESTADO GLOBAL ===
+        // =========================================================================
+
+        // Variables globales de entorno
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-predictfind-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const CASE_ID = 'active_case';
+
+        let app;
+        let db;
+        let auth;
+        let userId = null;
+        let isAuthReady = false;
+
+        // Estado central de la aplicación
+        const appState = {
+            caseData: null,
+            loading: true,
+            reportLoading: false,
+            generatedReport: null,
+            message: '',
+            error: '',
+            environmentalData: null,
+            predictions: null,
+        };
+
+        // Configuración de logging de Firebase para debug
+        if (typeof setLogLevel === 'function') {
+            setLogLevel('Debug');
+        }
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+            } catch (e) {
+                console.error("Error al inicializar Firebase:", e);
+                appState.error = "Error al inicializar Firebase: " + e.message;
+            }
+        } else {
+            appState.error = "Configuración de Firebase no proporcionada.";
+        }
+
+        // =========================================================================
+        // === 2. UTILIDADES DE DOM Y ESTADO ===
+        // =========================================================================
+
+        /**
+         * Muestra mensajes de estado (éxito o error) en la interfaz.
+         * @param {string} msg El mensaje a mostrar.
+         * @param {string} type El tipo de mensaje ('error' o 'success').
+         */
+        const displayMessage = (msg, type = 'success') => {
+            appState.message = msg;
+            const container = document.getElementById('messages-container');
+            const color = type === 'error' ? 'red' : 'blue';
+            const icon = type === 'error' ? '⚠️' : '✅';
+            container.innerHTML = `
+                <div class="bg-${color}-100 border border-${color}-400 text-${color}-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <span class="block sm:inline ml-2 font-semibold">${icon} ${msg}</span>
+                </div>
+            `;
+            // Limpiar mensaje después de 5 segundos
+            setTimeout(() => {
+                if (appState.message === msg) {
+                    appState.message = '';
+                    container.innerHTML = '';
+                }
+            }, 5000);
+        };
+
+        /**
+         * Renderiza el estado actual de la aplicación en la interfaz.
+         */
+        const renderUI = () => {
+            // 1. Renderizar información de usuario
+            const userInfoEl = document.getElementById('user-info');
+            if (userInfoEl) {
+                userInfoEl.innerHTML = `ID de Usuario Actual: <code class="bg-gray-200 p-1 rounded text-gray-600">${userId ? userId.substring(0, 8) + '...' : 'Cargando...'}</code>`;
+            }
+
+            // 2. Mostrar errores/mensajes
+            if (appState.error) {
+                 displayMessage(appState.error, 'error');
+                 appState.error = ''; // Limpiar después de mostrar una vez
+            } else if (appState.message && !document.getElementById('messages-container').innerHTML) {
+                 displayMessage(appState.message, 'success');
+            }
+
+
+            // 3. Renderizar el Display de Predicción
+            const predictionHtml = renderPredictionDisplay(appState.predictions);
+            document.getElementById('prediction-display').innerHTML = predictionHtml;
+
+            // 4. Renderizar el Mapa de Calor
+            const heatmapHtml = renderHeatmapVisualization(appState.predictions);
+            document.getElementById('heatmap-visualization').innerHTML = heatmapHtml;
+
+            // 5. Renderizar Factores Ambientales
+            const environmentHtml = renderEnvironmentDisplay(appState.environmentalData);
+            document.getElementById('environment-display').innerHTML = environmentHtml;
+
+            // 6. Renderizar la Sección de Pistas
+            const cluesHtml = renderCluesDisplay(appState.caseData?.clues || []);
+            document.getElementById('clues-section').innerHTML = cluesHtml;
+
+            // 7. Actualizar el estado del botón de Reporte
+            const generateBtn = document.getElementById('generate-report-btn');
+            if (generateBtn) {
+                generateBtn.disabled = !appState.caseData || appState.loading || appState.reportLoading;
+                generateBtn.textContent = appState.reportLoading ? 'Analizando Datos (IA en curso)...' : 'Generar Reporte de Situación (SITREP)';
+            }
+
+            // 8. Actualizar el estado del botón de Guardar
+            const saveBtn = document.getElementById('save-case-btn');
+            if (saveBtn) {
+                saveBtn.disabled = appState.loading;
+                saveBtn.textContent = appState.loading ? 'Guardando...' : (appState.caseData ? 'Actualizar Datos y Reentrenar Modelo' : 'Iniciar Nuevo Caso y Generar Predicción');
+            }
+
+            // 9. Llenar formularios si hay datos
+            if (appState.caseData) {
+                document.getElementById('personName').value = appState.caseData.personName || '';
+                document.getElementById('routine').value = appState.caseData.routine || '';
+                document.getElementById('frequentedPlaces').value = appState.caseData.frequentedPlaces || '';
+            }
+
+        };
+
+
+        // =========================================================================
+        // === 3. UTILIDADES DE CÁLCULO Y API ===
+        // =========================================================================
+
+        /**
+         * Convierte un subconjunto básico de Markdown a HTML.
+         */
+        const markdownToHtml = (markdown) => {
+            if (!markdown) return '';
+            let html = markdown;
+            
+            // 1. Convierte encabezados de markdown
+            html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold mt-4 mb-2 text-gray-700">$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-6 mb-3 text-indigo-700 border-b pb-1">$1</h2>');
+            
+            // 2. Convierte texto en negrita
+            html = html.replace(/\*\*(.*)\*\*/gim, '<span class="font-extrabold">$1</span>');
+            
+            // 3. Elimina etiquetas de imagen de Markdown o enlaces
+            html = html.replace(/\[.*?\]/g, ''); 
+
+            // 4. Convierte saltos de línea doble en párrafos HTML
+            html = html.replace(/\n\s*\n/g, '</p><p>'); 
+            
+            // 5. Convierte saltos de línea simples en <br/>
+            html = html.replace(/\n/g, '<br/>'); 
+            
+            // 6. Asegura que el contenido esté envuelto en al menos un párrafo
+            html = '<p>' + html + '</p>';
+            
+            return html;
+        };
+
+        /**
+         * Llama a la API de Gemini para generar contenido basado en un prompt.
+         */
+        const callGeminiAPI = async (prompt, systemPrompt) => {
+            const apiKey = ""
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            let response;
+            const maxRetries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                            return text;
+                        } else {
+                            throw new Error("Respuesta de la API de Gemini incompleta o vacía.");
+                        }
+                    } else if (response.status === 429 && i < maxRetries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2;
+                        continue;
+                    } else {
+                        throw new Error(`Error en la llamada a la API: ${response.status} ${response.statusText}`);
+                    }
+                } catch (e) {
+                    if (i === maxRetries - 1) throw e;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2;
+                }
+            }
+        };
+
+        /**
+         * Mapea una puntuación de probabilidad a una clase de color de Tailwind.
+         */
+        const getHeatmapColor = (score) => {
+            if (score >= 60) return 'bg-red-600/90 text-white shadow-xl ring-4 ring-red-400';
+            if (score >= 40) return 'bg-red-400/80 text-white';
+            if (score >= 25) return 'bg-yellow-400/80 text-gray-800';
+            if (score >= 10) return 'bg-yellow-200/70 text-gray-800';
+            return 'bg-green-100/70 text-gray-600';
+        };
+
+        /**
+         * Simula la obtención de datos ambientales en tiempo real.
+         */
+        const simulateEnvironmentalData = () => ({
+            weather: "Lluvia ligera, 12°C",
+            traffic: "Bajo en zonas suburbanas, Alto cerca del centro (Eventos Locales)",
+            events: "Maratón benéfico en el cuadrante NE de la ciudad",
+            impactAnalysis: "El clima frío y el tráfico alto desplazarían a la persona hacia refugios conocidos o rutas menos transitadas, alejadas del centro."
+        });
+
+        /**
+         * Simula el modelo de Machine Learning para generar predicciones.
+         */
+        const simulatePrediction = (caseData) => {
+            const { routine, frequentedPlaces, clues } = caseData;
+            let baseScore = 0.5;
+            let patternAdjustment = 0;
+            let locationAdjustment = 0;
+            let clueAdjustment = 0;
+
+            // 1. Análisis de Datos Históricos y Comportamentales
+            if (routine && routine.length > 50) patternAdjustment += 0.1;
+            if (frequentedPlaces && frequentedPlaces.length > 30) locationAdjustment += 0.15;
+
+            // 2. Análisis de Contexto (Pistas)
+            if (clues && Array.isArray(clues)) {
+                clueAdjustment = Math.min(0.2, clues.length * 0.05);
+            }
+
+            const finalProbability = Math.min(0.99, baseScore + patternAdjustment + locationAdjustment + clueAdjustment);
+            const score = finalProbability * 100;
+
+            // --- Simulación del Mapa de Calor por Cuadrantes ---
+            const areas = ['NW', 'N', 'NE', 'W', 'C', 'E', 'SW', 'S', 'SE'];
+            const quadrantProbabilities = {};
+
+            let highPriorityArea;
+            if (score > 85) highPriorityArea = 'C';
+            else if (score > 75) highPriorityArea = 'E';
+            else if (score > 65) highPriorityArea = 'SW';
+            else highPriorityArea = 'N'; 
+
+            // 1. Establecer probabilidades base y el pico
+            areas.forEach(area => quadrantProbabilities[area] = 2); 
+
+            // 2. Aumentar el área de máxima prioridad
+            quadrantProbabilities[highPriorityArea] += (score * 0.4); 
+
+            // 3. Aumentar áreas vecinas
+            const neighbors = {
+                'C': ['N', 'E', 'S', 'W'],
+                'N': ['NW', 'NE', 'C'],
+                'E': ['NE', 'SE', 'C'],
+                'SW': ['W', 'S', 'C'],
+            }[highPriorityArea] || ['N', 'S'];
+
+            neighbors.forEach(n => {
+                if (quadrantProbabilities[n] !== undefined) {
+                    quadrantProbabilities[n] += (score * 0.05); 
+                }
+            });
+
+            // 4. Normalizar y redondear
+            areas.forEach(area => {
+                quadrantProbabilities[area] = Math.min(99, Math.round(quadrantProbabilities[area] * 100) / 100);
+            });
+            
+
+            return {
+                priorityLocation: highPriorityArea === 'C' ? "Área de Interés Máximo (Centro de Rutina)" : `Zona de Tránsito en Cuadrante ${highPriorityArea}`,
+                predictionScore: score.toFixed(2) + '%',
+                lastUpdated: new Date().toLocaleTimeString('es-ES'),
+                heatmapScores: quadrantProbabilities, 
+                highPriorityArea: highPriorityArea 
+            };
+        };
+
+
+        // =========================================================================
+        // === 4. FUNCIONES DE RENDERIZADO DE COMPONENTES ===
+        // =========================================================================
+
+        const renderPredictionDisplay = (predictions) => {
+            if (!predictions) {
+                return '<p class="text-gray-500">Ingrese datos iniciales para generar la primera predicción.</p>';
+            }
+            
+            const colorClass = parseFloat(predictions.predictionScore) > 75 ? 'text-red-600' : 'text-green-600';
+
+            return `
+                <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l2-2 2 2v13M9 19H7a2 2 0 01-2-2v-5a2 2 0 012-2h2v7zm0 0h6m-6 0v-7m0 0V9m0 0h6m-6 0h-2m2 0h-2m-2-2h4m-4 0a2 2 0 01-2-2v-3a2 2 0 012-2h6a2 2 0 012 2v3a2 2 0 01-2 2h-4z"></path></svg>
+                    Resultados Predictivos Clave
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center bg-indigo-50 p-3 rounded-lg">
+                        <span class="font-semibold text-gray-600">Puntuación de Probabilidad Total (POC):</span>
+                        <span class="text-2xl font-extrabold ${colorClass}">
+                            ${predictions.predictionScore}
+                        </span>
+                    </div>
+
+                    <div class="bg-white p-3 border border-indigo-200 rounded-lg">
+                        <p class="font-semibold text-gray-700">Área de Búsqueda de Probabilidad (PSA):</p>
+                        <p class="text-xl text-indigo-700 font-bold">${predictions.priorityLocation}</p>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-4 italic">Última Actualización del Modelo: ${predictions.lastUpdated}</p>
+                </div>
+            `;
+        };
+
+        const renderEnvironmentDisplay = (environmentalData) => {
+            if (!environmentalData) {
+                return '<p class="text-gray-500">Cargando datos ambientales...</p>';
+            }
+
+            return `
+                <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Factores Ambientales (Contexto Operacional)
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <p><span class="font-semibold text-gray-700">Clima:</span> ${environmentalData.weather}</p>
+                    <p><span class="font-semibold text-gray-700">Tráfico/Accesibilidad:</span> ${environmentalData.traffic}</p>
+                    <p><span class="font-semibold text-gray-700">Eventos Locales:</span> ${environmentalData.events}</p>
+                    <div class="bg-green-50 p-3 rounded-lg border-l-4 border-green-400 mt-4">
+                        <p class="font-bold text-green-700">Análisis de Impacto:</p>
+                        <p class="text-green-800">${environmentalData.impactAnalysis}</p>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderHeatmapVisualization = (predictions) => {
+            if (!predictions || !predictions.heatmapScores) {
+                return '<p class="text-gray-500 text-center py-8">Esperando datos para generar el Mapa Operacional.</p>';
+            }
+
+            const areas = ['NW', 'N', 'NE', 'W', 'C', 'E', 'SW', 'S', 'SE'];
+            const areaLabels = {
+                'NW': 'Cuadrante A-1', 'N': 'Cuadrante A-2', 'NE': 'Cuadrante A-3',
+                'W': 'Cuadrante B-1', 'C': 'Cuadrante B-2', 'E': 'Cuadrante B-3',
+                'SW': 'Cuadrante C-1', 'S': 'Cuadrante C-2', 'SE': 'Cuadrante C-3'
+            };
+            const { heatmapScores, highPriorityArea } = predictions;
+            
+            let gridCells = areas.map(area => {
+                const score = heatmapScores[area] || 0;
+                const isHighPriority = area === highPriorityArea;
+                const colorClass = getHeatmapColor(score);
+                const pulseClass = isHighPriority ? 'z-10 animate-pulse-slow' : 'z-0';
+                
+                return `
+                    <div
+                        class="flex flex-col items-center justify-center p-2 text-center text-xs font-bold border border-gray-300 transition-all duration-300 ease-in-out cursor-default ${colorClass} ${pulseClass}"
+                        title="${areaLabels[area]} (${area}): ${score.toFixed(2)}%"
+                        style="opacity: ${0.9 + (score / 100) * 0.1};"
+                    >
+                        <span class="text-sm sm:text-lg font-extrabold">${area}</span>
+                        <span class="text-xs sm:text-base mt-1">
+                            ${score.toFixed(0)}%
+                        </span>
+                        ${isHighPriority ? `
+                            <svg class="w-5 h-5 mt-1 text-yellow-300 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-9a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1zm0 4a1 1 0 102 0 1 1 0 00-2 0z" clip-rule="evenodd"></path></svg>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="grid grid-cols-3 gap-0 h-80 w-full max-w-lg mx-auto border-4 border-gray-900 rounded-lg overflow-hidden relative">
+                    <!-- Etiquetas de Ejes Simuladas (Simplificadas) -->
+                    <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+                        <div class="absolute left-0 top-1/6 transform -translate-y-1/2 text-xs font-bold text-gray-900 bg-white px-1 border-r border-gray-900">A</div>
+                        <div class="absolute left-0 top-1/2 transform -translate-y-1/2 text-xs font-bold text-gray-900 bg-white px-1 border-r border-gray-900">B</div>
+                        <div class="absolute left-0 top-5/6 transform -translate-y-1/2 text-xs font-bold text-gray-900 bg-white px-1 border-r border-gray-900">C</div>
+                        <div class="absolute bottom-0 left-1/6 transform -translate-x-1/2 text-xs font-bold text-gray-900 bg-white py-0.5 border-t border-gray-900">1</div>
+                        <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-xs font-bold text-gray-900 bg-white py-0.5 border-t border-gray-900">2</div>
+                        <div class="absolute bottom-0 left-5/6 transform -translate-x-1/2 text-xs font-bold text-gray-900 bg-white py-0.5 border-t border-gray-900">3</div>
+                    </div>
+                    ${gridCells}
+                </div>
+                
+                <div class="mt-6 border-t pt-4">
+                    <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                        <span class="inline-block w-3 h-3 rounded-full bg-red-600/90 mr-2"></span>
+                        Directriz de Despliegue Táctico:
+                    </h4>
+                    <p class="text-base font-medium text-red-700 bg-red-50 p-3 rounded-lg border border-red-200">
+                        Priorizar equipos de búsqueda y rescate en el <span class="font-extrabold">${areaLabels[highPriorityArea]} (${highPriorityArea})</span>, estableciendo un perímetro de contención secundario en zonas colindantes.
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">La cuadrícula utiliza un sistema de coordenadas A-C (vertical) y 1-3 (horizontal).</p>
+                </div>
+            `;
+        };
+
+        const renderCluesDisplay = (clues) => {
+            const cluesList = Array.isArray(clues) && clues.length > 0 ?
+                clues.slice().reverse().map((clue, index) => `
+                    <div key="${index}" class="bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-400">
+                        <p class="text-sm text-gray-800 italic">"${clue.text}"</p>
+                        <p class="text-xs text-right text-gray-500">Reportado por: ${clue.reportedBy.substring(0, 8)}... - ${new Date(clue.timestamp).toLocaleTimeString('es-ES')}</p>
+                    </div>
+                `).join('')
+                : '<p class="text-gray-500">No hay pistas ingresadas aún. ¡Cada pista es vital para el POC!</p>';
+
+            return `
+                <div class="bg-white shadow-xl rounded-2xl p-6 border-t-4 border-yellow-500 transition duration-300 hover:shadow-2xl h-full">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.382a12.008 12.008 0 00-6.418-4.966a12.004 12.004 0 00-7.394 0 12.008 12.008 0 00-6.418 4.966 12.004 12.004 0 00-1.898 5.463 12.008 12.008 0 001.898 5.463 12.004 12.004 0 006.418 4.966 12.004 12.004 0 007.394 0 12.008 12.008 0 006.418-4.966 12.004 12.004 0 001.898-5.463 12.008 12.008 0 00-1.898-5.463z"></path></svg>
+                        Bucle de Retroalimentación y Pistas
+                    </h3>
+                    <div class="space-y-3 overflow-y-auto max-h-60" id="clues-list-container">
+                        ${cluesList}
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                        <h4 class="font-semibold text-lg mb-2">Ingresar Nueva Pista / Feedback:</h4>
+                        <textarea
+                            id="new-clue-input"
+                            class="w-full p-2 border border-yellow-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                            rows="2"
+                            placeholder="Ej: Un testigo vio a la persona en el área NE a las 10:00 AM."
+                        ></textarea>
+                        <button
+                            id="add-clue-btn"
+                            class="w-full mt-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50 shadow-md"
+                        >
+                            Añadir Pista y Reevaluar Patrones
+                        </button>
+                    </div>
+                </div>
+            `;
+        };
+
+        // =========================================================================
+        // === 5. FUNCIONES DE MANEJO DE DATOS Y EVENTOS ===
+        // =========================================================================
+
+        /**
+         * Guarda o actualiza los detalles principales del caso en Firestore.
+         */
+        const saveCaseData = async (data) => {
+            if (!db || !userId) {
+                appState.error = 'Error: Base de datos no disponible o usuario no autenticado.';
+                renderUI();
+                return;
+            }
+            appState.loading = true;
+            renderUI();
+            try {
+                const caseDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'predictFindCases', CASE_ID);
+                await setDoc(caseDocRef, {
+                    ...data,
+                    updatedAt: new Date().toISOString(),
+                    updatedBy: userId,
+                }, { merge: true });
+                displayMessage('Datos del caso actualizados con éxito. Predicciones reevaluadas.');
+            } catch (e) {
+                console.error("Error al guardar datos:", e);
+                appState.error = 'Fallo al guardar los datos: ' + e.message;
+            } finally {
+                appState.loading = false;
+                renderUI();
+            }
+        };
+
+        const handleSaveCaseDetails = (e) => {
+            e.preventDefault();
+            
+            const personName = document.getElementById('personName').value;
+            const routine = document.getElementById('routine').value;
+            const frequentedPlaces = document.getElementById('frequentedPlaces').value;
+
+            // Asegura que el array de pistas no se sobrescriba al actualizar los detalles principales
+            const currentClues = appState.caseData?.clues || [];
+
+            saveCaseData({ personName, routine, frequentedPlaces, clues: currentClues });
+        };
+
+        const handleAddClue = async () => {
+            const newClueInput = document.getElementById('new-clue-input');
+            const newClue = newClueInput.value.trim();
+
+            if (!db || !userId || !newClue) {
+                appState.error = 'El texto de la pista es obligatorio.';
+                renderUI();
+                return;
+            }
+
+            appState.loading = true;
+            renderUI();
+            try {
+                const caseDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'predictFindCases', CASE_ID);
+                const newClueObject = {
+                    text: newClue,
+                    timestamp: new Date().toISOString(),
+                    reportedBy: userId,
+                };
+
+                await updateDoc(caseDocRef, {
+                    clues: arrayUnion(newClueObject) // Añade el nuevo objeto al array
+                });
+
+                newClueInput.value = '';
+                displayMessage('Nueva pista ingresada con éxito. Reevaluando patrones...');
+            } catch (e) {
+                console.error("Error al añadir pista:", e);
+                appState.error = 'Fallo al añadir la pista: ' + e.message;
+            } finally {
+                appState.loading = false;
+                renderUI();
+            }
+        };
+
+        /**
+         * Genera el Reporte de Situación (SITREP) con la IA.
+         */
+        const handleGenerateReport = async () => {
+            if (!appState.caseData || !appState.predictions) {
+                displayMessage('Debe ingresar datos del caso y esperar una predicción inicial antes de generar un reporte.', 'error');
+                return;
+            }
+
+            appState.reportLoading = true;
+            appState.generatedReport = null;
+            showReportModal(true); // Mostrar modal de carga
+            renderUI(); // Actualizar botón y estado de carga
+
+            try {
+                const caseData = appState.caseData;
+                const predictions = appState.predictions;
+                const environmentalData = appState.environmentalData;
+                const personName = caseData.personName || 'Persona Desaparecida';
+
+                const reportPrompt = `
+                    Genera un Reporte de Situación (SITREP) operativo para el caso de ${personName}.
+                    
+                    1. **Perfil y Patrones:** Rutina: ${caseData.routine || 'N/A'}; Zonas de Frecuencia: ${caseData.frequentedPlaces || 'N/A'}.
+                    2. **Predicción Táctica (PredictFind):** Nivel de Probabilidad: ${predictions.predictionScore}; Cuadrante de Máxima Probabilidad: ${predictions.highPriorityArea}.
+                    3. **Contexto Operacional:** Condición Climática Actual: ${environmentalData.weather}; Impacto en Accesibilidad: ${environmentalData.traffic}.
+                    4. **Últimas Pistas:** Total de entradas: ${caseData.clues?.length || 0}. Las últimas 3 entradas de feedback son: ${caseData.clues?.slice(-3).map(c => c.text).join('; ') || 'Ninguna'}.
+                    
+                    Escribe un resumen profesional de 3 párrafos, utilizando terminología de Búsqueda y Rescate (SAR) y gestión de crisis.
+                    - **Párrafo 1 (Resumen Ejecutivo):** Evaluación inicial del escenario, confirmando el patrón de comportamiento (P.O.C.) y la puntuación de probabilidad del modelo PredictFind.
+                    - **Párrafo 2 (Evaluación de Factores):** Detalla cómo el contexto operacional (clima, tráfico, pistas) impacta el Área de Búsqueda de Probabilidad (PSA).
+                    - **Párrafo 3 (Directrices Operacionales):** Proporciona la directriz de despliegue para los equipos de campo, priorizando el cuadrante de máxima probabilidad (ej: Cuadrante B-2) y estableciendo un perímetro secundario.
+                    
+                    Formatea el reporte usando Markdown con encabezados.
+                `;
+
+                const systemPrompt = "Actúa como un Comandante de Incidente y Analista de Inteligencia Táctica (INTEL). Tu tarea es sintetizar los datos de un caso de persona desaparecida, las predicciones del modelo y la información ambiental en un Reporte de Situación (SITREP) operativo conciso y procesable, estrictamente en español. Utiliza terminología de Búsqueda y Rescate (SAR) como P.O.C. (Patrón de Comportamiento), PSA (Área de Búsqueda de Probabilidad) y Cuadrantes Tácticos. No añadas introducción ni conclusión fuera del cuerpo del reporte. Asegura el formato Markdown para la exportación.";
+
+                const reportText = await callGeminiAPI(reportPrompt, systemPrompt);
+
+                appState.generatedReport = reportText;
+                
+                // Renderizar contenido en el modal
+                const modalContent = document.getElementById('modal-content');
+                const copyBtn = document.getElementById('copy-report-btn');
+                const modalTitle = document.getElementById('modal-title');
+                
+                modalTitle.textContent = `Reporte de Situación (SITREP) - ${personName}`;
+
+                if (reportText) {
+                    modalContent.innerHTML = `<div class="prose max-w-none text-gray-800">${markdownToHtml(reportText)}</div>`;
+                    copyBtn.disabled = false;
+                } else {
+                    modalContent.innerHTML = '<p class="text-red-500 font-semibold text-center py-12">Error: No se pudo generar el reporte. Revise los datos e intente de nuevo.</p>';
+                    copyBtn.disabled = true;
+                }
+                
+                displayMessage('Reporte de Situación (SITREP) generado con éxito, con enfoque táctico.');
+
+            } catch (e) {
+                console.error("Error al generar el reporte:", e);
+                appState.error = 'Fallo al generar el reporte: ' + e.message;
+                showReportModal(false); // Ocultar modal si hay error
+            } finally {
+                appState.reportLoading = false;
+                renderUI();
+            }
+        };
+
+        // =========================================================================
+        // === 6. MANEJO DEL MODAL ===
+        // =========================================================================
+
+        const showReportModal = (loading = false) => {
+            const modal = document.getElementById('report-modal');
+            const modalContent = document.getElementById('modal-content');
+            const copyBtn = document.getElementById('copy-report-btn');
+            
+            modal.classList.remove('hidden');
+            copyBtn.disabled = true;
+            
+            if (loading) {
+                modalContent.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+                        <p class="text-lg text-gray-600">Analizando datos del caso y generando reporte con IA...</p>
+                    </div>
+                `;
+            }
+        };
+
+        const hideReportModal = () => {
+            document.getElementById('report-modal').classList.add('hidden');
+            document.getElementById('copy-message').textContent = '';
+        };
+        
+        const handleCopyReport = () => {
+            try {
+                const reportText = appState.generatedReport;
+                if (!reportText) return;
+
+                const tempElement = document.createElement('textarea');
+                // Limpiamos HTML y preparamos el texto plano para copiar
+                const cleanReport = reportText ? reportText.replace(/<br\/>/g, '\n').replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim() : '';
+                tempElement.value = cleanReport;
+                document.body.appendChild(tempElement);
+                tempElement.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempElement);
+                
+                const copyMessageEl = document.getElementById('copy-message');
+                copyMessageEl.textContent = 'Copiado al portapapeles!';
+                setTimeout(() => copyMessageEl.textContent = '', 3000);
+            } catch (err) {
+                document.getElementById('copy-message').textContent = 'Fallo al copiar.';
+            }
+        };
+
+
+        // =========================================================================
+        // === 7. FIREBASE Y AUTENTICACIÓN ===
+        // =========================================================================
+
+        const setupFirestoreListener = () => {
+            if (!isAuthReady || !db) return;
+
+            // 1. Obtener datos ambientales simulados una vez al inicio.
+            appState.environmentalData = simulateEnvironmentalData();
+
+            const caseDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'predictFindCases', CASE_ID);
+
+            // 2. Escucha en tiempo real (onSnapshot)
+            const unsubscribe = onSnapshot(caseDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    appState.caseData = data;
+                    // Regenerar predicciones cada vez que cambien los datos
+                    appState.predictions = simulatePrediction(data);
+                } else {
+                    appState.caseData = null;
+                    appState.predictions = null;
+                }
+                appState.loading = false;
+                renderUI();
+            }, (err) => {
+                console.error("Error de Firestore:", err);
+                appState.error = "Error al cargar datos del caso: " + err.message;
+                appState.loading = false;
+                renderUI();
+            });
+
+            // Retornar la función de desuscripción
+            return unsubscribe;
+        };
+        
+        const initAuthAndListeners = async () => {
+             if (!auth || !db) {
+                appState.error = "Firebase no inicializado. La aplicación no funcionará correctamente.";
+                appState.loading = false;
+                renderUI();
+                return;
+            }
+
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Error de autenticación inicial:", e);
+                // Intentar anónimamente como fallback si falla el token
+                try {
+                    await signInAnonymously(auth);
+                } catch (anonError) {
+                    appState.error = "Fallo total en la autenticación. " + anonError.message;
+                    appState.loading = false;
+                    renderUI();
+                    return;
+                }
+            }
+
+            // Configurar el listener de estado de autenticación
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    // Generar un ID temporal si no hay user.uid por alguna razón
+                    userId = crypto.randomUUID(); 
+                }
+                isAuthReady = true;
+                
+                // Iniciar el listener de Firestore solo después de que la autenticación esté lista
+                setupFirestoreListener(); 
+            });
+
+             // Agregar event listeners a los botones
+            document.getElementById('case-details-form').addEventListener('submit', handleSaveCaseDetails);
+            
+            // Re-renderizar para que el listener de pistas funcione si los datos ya están en el DOM
+            document.getElementById('clues-section').addEventListener('click', (e) => {
+                 if (e.target && e.target.id === 'add-clue-btn') {
+                     handleAddClue();
+                 }
+            });
+
+            document.getElementById('generate-report-btn').addEventListener('click', handleGenerateReport);
+            document.getElementById('close-modal-btn').addEventListener('click', hideReportModal);
+            document.getElementById('copy-report-btn').addEventListener('click', handleCopyReport);
+
+        };
+
+        // =========================================================================
+        // === 8. INICIO DE LA APLICACIÓN ===
+        // =========================================================================
+
+        window.onload = initAuthAndListeners;
+
+    </script>
+</body>
+</html>
